@@ -42,7 +42,7 @@ import javax.inject.Inject;
 
 /**
  * FXML Controller class
- *
+ * <p>
  * @author adam-bien.com
  */
 public class TopgunPresenter implements Initializable {

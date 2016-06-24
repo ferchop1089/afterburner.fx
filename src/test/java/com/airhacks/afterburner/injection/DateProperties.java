@@ -34,7 +34,6 @@ package com.airhacks.afterburner.injection;
  * limitations under the License.
  * #L%
  */
-
 import java.util.Date;
 import javax.inject.Inject;
 

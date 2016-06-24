@@ -95,10 +95,10 @@ public class Injector {
 
     /**
      * Caches the passed presenter internally and injects all fields
-     *
-     * @param <T> the class to initialize
-     * @param instance An already existing (legacy) presenter interesting in
-     * injection
+     * <p>
+     * @param <T>      the class to initialize
+     * @param instance An already existing (legacy) presenter interesting in injection
+     * <p>
      * @return presenter with injected fields
      */
     public static <T> T registerExistingAndInject(T instance) {
@@ -111,8 +111,15 @@ public class Injector {
     public static <T> T instantiateModelOrService(Class<T> clazz) {
         T product = (T) modelsAndServices.get(clazz);
         if (product == null) {
-            product = injectAndInitialize((T) instanceSupplier.apply(clazz));
-            modelsAndServices.putIfAbsent(clazz, product);
+            product = (T) instanceSupplier.apply(clazz);
+            // Se verifica que 'product' no sea null.
+            // Esto en caso de que instanceSupplier contenga un inyector de dependencias 
+            // personalizado (Dagger, Spring, Guice, CDI, etc) y éste pueda retornar null 
+            // cuando la clase pasada no coincida con ningún bean de su contenedor.
+            if (product != null) {
+                product = injectAndInitialize(product);
+                modelsAndServices.putIfAbsent(clazz, product);
+            }
         }
         return clazz.cast(product);
     }
@@ -142,12 +149,12 @@ public class Injector {
                 String key = field.getName();
                 Object value = configurator.getProperty(clazz, key);
                 LOG.accept("Value returned by configurator is: " + value);
-                if (value == null && isNotPrimitiveOrString(type)) {
+                if (value == null && isNotPrimitiveOrWrapper(type)) {
                     LOG.accept("Field is not a JDK class");
                     value = instantiateModelOrService(type);
                 }
                 if (value != null) {
-                    LOG.accept("Value is a primitive, injecting...");
+                    LOG.accept("Value is a simple value, injecting...");
                     injectIntoField(field, instance, value);
                 }
             }
@@ -165,6 +172,7 @@ public class Injector {
             try {
                 field.setAccessible(true);
                 field.set(instance, target);
+                LOG.accept("Value " + target + " was ijected in the field " + field + " of the instace " + instance);
                 return null; // return nothing...
             } catch (IllegalArgumentException | IllegalAccessException ex) {
                 throw new IllegalStateException("Cannot set field: " + field + " with value " + target, ex);
@@ -238,7 +246,11 @@ public class Injector {
         };
     }
 
-    private static boolean isNotPrimitiveOrString(Class<?> type) {
-        return !type.isPrimitive() && !type.isAssignableFrom(String.class);
+    private static boolean isNotPrimitiveOrWrapper(Class<?> type) {
+        // Number for Byte, Short, Integer, Long, Float, Double, BigDecimal, BigInteger, etc.
+        return !type.isPrimitive() && !type.isAssignableFrom(String.class)
+               && !type.isAssignableFrom(Number.class)
+               && !type.isAssignableFrom(Boolean.class)
+               && !type.isAssignableFrom(Character.class);
     }
 }

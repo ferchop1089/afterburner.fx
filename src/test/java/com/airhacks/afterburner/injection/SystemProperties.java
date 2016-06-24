@@ -15,6 +15,8 @@
  */
 package com.airhacks.afterburner.injection;
 
+import javax.inject.Inject;
+
 /*
  * #%L
  * afterburner.fx
@@ -34,9 +36,6 @@ package com.airhacks.afterburner.injection;
  * limitations under the License.
  * #L%
  */
-
-import javax.inject.Inject;
-
 /**
  *
  * @author adam-bien.com
