@@ -33,6 +33,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.inject.Inject;
@@ -47,6 +48,7 @@ public class Injector {
     private static final Set<Object> presenters = Collections.newSetFromMap(new WeakHashMap<>());
 
     private static Function<Class<?>, Object> instanceSupplier = getDefaultInstanceSupplier();
+    private static Predicate<Class<?>> predicate = getDefaultPredicate();
 
     private static Consumer<String> LOG = getDefaultLogger();
 
@@ -56,17 +58,31 @@ public class Injector {
         @SuppressWarnings("unchecked")
         T presenter = registerExistingAndInject((T) instanceSupplier.apply(clazz));
         //after the regular, conventional initialization and injection, perform postinjection
+        postInjection(clazz, presenter, injectionContext);
+
+        return presenter;
+    }
+
+    static <T> void postInjection(Class<? extends Object> clazz, T instance, Function<String, Object> injectionContext) {
+        LOG.accept("postInjection >>> Injecting members for class " + clazz + " and instance " + instance);
         Field[] fields = clazz.getDeclaredFields();
         for (final Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
+                LOG.accept("postInjection >>> Field annotated with @Inject found: " + field);
                 final String fieldName = field.getName();
                 final Object value = injectionContext.apply(fieldName);
+                LOG.accept("postInjection >>> Value returned by injectionContext is: " + value);
                 if (value != null) {
-                    injectIntoField(field, presenter, value);
+                    LOG.accept("postInjection >>> injecting...");
+                    injectIntoField(field, instance, value);
                 }
             }
         }
-        return presenter;
+        Class<? extends Object> superclass = clazz.getSuperclass();
+        if (superclass != null) {
+            LOG.accept("postInjection >>> Injecting members of supeclass: " + superclass);
+            postInjection(superclass, instance, injectionContext);
+        }
     }
 
     public static <T> T instantiatePresenter(Class<T> clazz) {
@@ -149,7 +165,7 @@ public class Injector {
                 String key = field.getName();
                 Object value = configurator.getProperty(clazz, key);
                 LOG.accept("Value returned by configurator is: " + value);
-                if (value == null && isNotPrimitiveOrWrapper(type)) {
+                if (value == null && isNotPrimitiveOrWrapper(type) && predicate.test(type)) {
                     LOG.accept("Field is not a JDK class");
                     value = instantiateModelOrService(type);
                 }
@@ -161,7 +177,7 @@ public class Injector {
         }
         Class<? extends Object> superclass = clazz.getSuperclass();
         if (superclass != null) {
-            LOG.accept("Injecting members of: " + superclass);
+            LOG.accept("Injecting members of superclass: " + superclass);
             injectMembers(superclass, instance);
         }
     }
@@ -184,8 +200,7 @@ public class Injector {
 
     static void initialize(Object instance) {
         Class<? extends Object> clazz = instance.getClass();
-        invokeMethodWithAnnotation(clazz, instance, PostConstruct.class
-        );
+        invokeMethodWithAnnotation(clazz, instance, PostConstruct.class);
     }
 
     static void destroy(Object instance) {
@@ -253,4 +268,13 @@ public class Injector {
                && !type.isAssignableFrom(Boolean.class)
                && !type.isAssignableFrom(Character.class);
     }
+
+    static Predicate<Class<?>> getDefaultPredicate() {
+        return (Class<?> t) -> true;
+    }
+
+    public static void setPredicatePreInjectMembers(Predicate<Class<?>> predicate) {
+        Injector.predicate = predicate;
+    }
+
 }
