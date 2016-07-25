@@ -91,14 +91,14 @@ public class FXMLViewTest {
     @Test
     public void conventionalLowerCaseName() {
         FXMLView view = new TopgunView();
-        String conventionalName = view.getConventionalName(true);
+        String conventionalName = view.getConventionalName(true, false);
         assertThat(conventionalName, is("topgun"));
     }
 
     @Test
     public void conventionalUnchangedName() {
         FXMLView view = new TopgunView();
-        String conventionalName = view.getConventionalName(false);
+        String conventionalName = view.getConventionalName(false, false);
         assertThat(conventionalName, is("Topgun"));
     }
 

@@ -65,8 +65,7 @@ public abstract class FXMLView extends StackPane {
     protected final static ExecutorService PARENT_CREATION_POOL = getExecutorService();
 
     /**
-     * Constructs the view lazily (fxml is not loaded) with empty injection
-     * context.
+     * Constructs the view lazily (fxml is not loaded) with empty injection context.
      */
     public FXMLView() {
         this(f -> null);
@@ -74,9 +73,9 @@ public abstract class FXMLView extends StackPane {
 
     /**
      *
-     * @param injectionContext the function is used as a injection source.
-     * Values matching for the keys are going to be used for injection into the
-     * corresponding presenter.
+     * @param injectionContext the function is used as a injection source. Values matching for the
+     *                         keys are going to be used for injection into the corresponding
+     *                         presenter.
      */
     public FXMLView(Function<String, Object> injectionContext) {
         this.injectionContext = injectionContext;
@@ -128,9 +127,9 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * Initializes the view by loading the FXML (if not happened yet) and
-     * returns the top Node (parent) specified in
-     *
+     * Initializes the view by loading the FXML (if not happened yet) and returns the top Node
+     * (parent) specified in
+     * <p>
      * @return the node loaded by FXMLLoader
      */
     public Parent getView() {
@@ -141,9 +140,9 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * Initializes the view synchronously and invokes and passes the created
-     * parent Node to the consumer within the FX UI thread.
-     *
+     * Initializes the view synchronously and invokes and passes the created parent Node to the
+     * consumer within the FX UI thread.
+     * <p>
      * @param consumer - an object interested in received the Parent as callback
      */
     public void getView(Consumer<Parent> consumer) {
@@ -154,9 +153,9 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * Creates the view asynchronously using an internal thread pool and passes
-     * the parent node within the UI Thread.
-     *
+     * Creates the view asynchronously using an internal thread pool and passes the parent node
+     * within the UI Thread.
+     * <p>
      *
      * @param consumer - an object interested in received the Parent as callback
      */
@@ -169,10 +168,9 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * Scene Builder creates for each FXML document a root container. This
-     * method omits the root container (e.g. AnchorPane) and gives you the
-     * access to its first child.
-     *
+     * Scene Builder creates for each FXML document a root container. This method omits the root
+     * container (e.g. AnchorPane) and gives you the access to its first child.
+     * <p>
      * @return the first child of the AnchorPane
      */
     public Node getViewWithoutRootContainer() {
@@ -189,7 +187,11 @@ public abstract class FXMLView extends StackPane {
             return;
         }
         String uriToCss = uri.toExternalForm();
-        parent.getStylesheets().add(uriToCss);
+
+        ObservableList<String> stylesheets = parent.getStylesheets();
+        if (!stylesheets.contains(uriToCss)) {
+            stylesheets.add(uriToCss);
+        }
     }
 
     String getStyleSheetName() {
@@ -198,21 +200,29 @@ public abstract class FXMLView extends StackPane {
 
     /**
      *
-     * @return the name of the fxml file derived from the FXML view. e.g. The
-     * name for the AirhacksView is going to be airhacks.fxml.
+     * @return the name of the fxml file derived from the FXML view. e.g. The name for the
+     *         AirhacksView is going to be airhacks.fxml.
      */
     final String getFXMLName() {
         return getResourceCamelOrLowerCase(true, ".fxml");
     }
 
     String getResourceCamelOrLowerCase(boolean mandatory, String ending) {
-        String name = getConventionalName(true, ending);
+        String name = getConventionalName(true, false, ending);
         URL found = getClass().getResource(name);
         if (found != null) {
             return name;
         }
         System.err.println("File: " + name + " not found, attempting with camel case");
-        name = getConventionalName(false, ending);
+
+        name = getConventionalName(false, false, ending);
+        found = getClass().getResource(name);
+        if (found != null) {
+            return name;
+        }
+        System.err.println("File: " + name + " not found, attempting with camel case");
+
+        name = getConventionalName(false, true, ending);
         found = getClass().getResource(name);
         if (mandatory && found == null) {
             final String message = "Cannot load file " + name;
@@ -224,13 +234,12 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * In case the view was not initialized yet, the conventional fxml
-     * (airhacks.fxml for the AirhacksView and AirhacksPresenter) are loaded and
-     * the specified presenter / controller is going to be constructed and
-     * returned.
-     *
-     * @return the corresponding controller / presenter (usually for a
-     * AirhacksView the AirhacksPresenter)
+     * In case the view was not initialized yet, the conventional fxml (airhacks.fxml for the
+     * AirhacksView and AirhacksPresenter) are loaded and the specified presenter / controller is
+     * going to be constructed and returned.
+     * <p>
+     * @return the corresponding controller / presenter (usually for a AirhacksView the
+     *         AirhacksPresenter)
      */
     public Object getPresenter() {
         this.initializeFXMLLoader();
@@ -238,10 +247,9 @@ public abstract class FXMLView extends StackPane {
     }
 
     /**
-     * Does not initialize the view. Only registers the Consumer and waits until
-     * the the view is going to be created / the method FXMLView#getView or
-     * FXMLView#getViewAsync invoked.
-     *
+     * Does not initialize the view. Only registers the Consumer and waits until the the view is
+     * going to be created / the method FXMLView#getView or FXMLView#getViewAsync invoked.
+     * <p>
      * @param presenterConsumer listener for the presenter construction
      */
     public void getPresenter(Consumer<Object> presenterConsumer) {
@@ -252,31 +260,38 @@ public abstract class FXMLView extends StackPane {
 
     /**
      *
-     * @param lowercase indicates whether the simple class name should be
-     * converted to lowercase of left unchanged
-     * @param ending the suffix to append
+     * @param allLowercase         indicates whether the simple class name should be converted to
+     *                             lowercase of left unchanged
+     * @param firstLetterLowercase
+     * @param ending               the suffix to append
+     * <p>
      * @return the conventional name with stripped ending
      */
-    protected String getConventionalName(boolean lowercase, String ending) {
-        return getConventionalName(lowercase) + ending;
+    protected String getConventionalName(boolean allLowercase, boolean firstLetterLowercase, String ending) {
+        return getConventionalName(allLowercase, firstLetterLowercase) + ending;
     }
 
     /**
      *
-     * @param lowercase indicates whether the simple class name should be
+     * @param lowercase            indicates whether the simple
+     * @param firstLetterLowercase class name should be
+     * <p>
      * @return the name of the view without the "View" prefix.
      */
-    protected String getConventionalName(boolean lowercase) {
+    protected String getConventionalName(boolean lowercase, boolean firstLetterLowercase) {
         final String clazzWithEnding = this.getClass().getSimpleName();
         String clazz = stripEnding(clazzWithEnding);
         if (lowercase) {
             clazz = clazz.toLowerCase();
         }
+        if (firstLetterLowercase) {
+            clazz = Character.toLowerCase(clazz.charAt(0)) + clazz.substring(1);
+        }
         return clazz;
     }
 
     String getBundleName() {
-        String conventionalName = getConventionalName(true);
+        String conventionalName = getConventionalName(true, false);
         return this.getClass().getPackage().getName() + "." + conventionalName;
     }
 
@@ -317,6 +332,7 @@ public abstract class FXMLView extends StackPane {
     /**
      *
      * @param t exception to report
+     * <p>
      * @return nothing
      */
     public Void exceptionReporter(Throwable t) {
